@@ -1,0 +1,2 @@
+"""AAIS FastAPI MVP package."""
+

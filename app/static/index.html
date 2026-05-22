@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AAIS Emergency Intelligence Simulator</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/static/styles.css?v=20260514-map2" />
+  </head>
+  <body>
+    <header class="shell-header">
+      <div class="brand-block">
+        <div class="brand-mark">AIIS</div>
+        <div>
+          <h1>Emergency Intelligence Simulator</h1>
+          <p>National ambulance, hospital, and command-center flow for the Ghana pilot.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="model-status" id="llm-status">LM Studio checking</div>
+        <button class="ghost-button" id="reset-sim" type="button">Reset</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="scenario-rail">
+        <div class="section-head">
+          <span>Scenarios</span>
+          <strong id="scenario-count">0</strong>
+        </div>
+        <div class="scenario-list" id="scenario-list"></div>
+      </aside>
+
+      <section class="workspace">
+        <section class="ops-strip" aria-label="Operational metrics">
+          <div class="metric">
+            <span id="metric-incidents-label">Active Incidents</span>
+            <strong id="metric-incidents">0</strong>
+          </div>
+          <div class="metric">
+            <span id="metric-ambulances-label">Ambulances Online</span>
+            <strong id="metric-ambulances">0</strong>
+          </div>
+          <div class="metric">
+            <span id="metric-beds-label">Open ER Beds</span>
+            <strong id="metric-beds">0</strong>
+          </div>
+          <div class="metric">
+            <span id="metric-load-label">Average ER Load</span>
+            <strong id="metric-load">0%</strong>
+          </div>
+        </section>
+
+        <section class="control-deck">
+          <div>
+            <p class="eyebrow">Simulation Session</p>
+            <h2 id="session-title">No active session</h2>
+            <p id="session-subtitle" class="muted">Choose a scenario to initialize the command flow.</p>
+          </div>
+          <div class="control-buttons">
+            <button id="start-session" type="button">Start</button>
+            <button id="step-session" type="button">Step</button>
+            <button id="run-session" type="button">Run</button>
+          </div>
+        </section>
+
+        <section class="main-grid">
+          <section class="panel map-panel">
+            <div class="panel-title">
+              <h2>Live Operating Picture</h2>
+              <span id="map-caption">Fleet, hospitals, and incident scene</span>
+            </div>
+            <div class="ghana-map" id="map"></div>
+          </section>
+
+          <section class="panel step-panel">
+            <div class="panel-title">
+              <h2>Flow Progress</h2>
+              <span id="session-state">Ready</span>
+            </div>
+            <div class="stepper" id="stepper"></div>
+          </section>
+
+          <section class="panel patient-panel">
+            <div class="panel-title">
+              <h2>Patient And Triage</h2>
+              <span id="patient-status">Awaiting pickup</span>
+            </div>
+            <div id="patient-card" class="detail-card empty-state">No incident selected.</div>
+          </section>
+
+          <section class="panel recommendations-panel">
+            <div class="panel-title">
+              <h2>Hospital Ranking</h2>
+              <span>Explainable deterministic scoring</span>
+            </div>
+            <div id="recommendations" class="ranking-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Hospital Load</h2>
+              <span>Mock capacity dashboard</span>
+            </div>
+            <div id="hospital-load" class="hospital-grid"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Fleet Status</h2>
+              <span>Mock NAS telemetry</span>
+            </div>
+            <div id="fleet-list" class="fleet-list"></div>
+          </section>
+
+          <section class="panel timeline-panel">
+            <div class="panel-title">
+              <h2>Command Timeline</h2>
+              <span>Audit-style event stream</span>
+            </div>
+            <div id="events" class="timeline"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-stack" id="toast-stack"></div>
+    <script src="/static/app.js?v=20260514-map2"></script>
+  </body>
+</html>
