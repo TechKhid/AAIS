@@ -11,7 +11,7 @@ The LLM layer supports LM Studio and NVIDIA NIM as selectable OpenAI-compatible 
 - hospital pre-alert summaries
 - digital handover notes
 
-The routing engine remains deterministic. It scores each hospital with these weights:
+The routing engine remains deterministic. It first limits candidates to hospitals in the incident region, using scene city as the MVP region boundary, then scores each remaining hospital with these weights:
 
 - clinical fit: 40
 - capacity/resources: 25

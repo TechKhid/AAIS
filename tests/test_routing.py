@@ -27,6 +27,55 @@ def test_routing_is_deterministic_for_equivalent_triage(client, stroke_payload):
     assert stored is not None
 
 
+def test_recommendations_are_limited_to_incident_region(client, stroke_payload):
+    incident_id = client.post("/incidents", json=stroke_payload).json()["id"]
+    client.post(f"/incidents/{incident_id}/ai-triage")
+
+    response = client.post(f"/incidents/{incident_id}/recommendations")
+
+    assert response.status_code == 200
+    recommendations = response.json()["recommendations"]
+    assert recommendations
+    assert {item["city"] for item in recommendations} == {"Accra"}
+    assert {item["hospital_id"] for item in recommendations} <= {"korle-bu-teaching", "ridge-hospital", "37-military"}
+
+
+def test_kumasi_incident_only_recommends_kumasi_hospitals(client):
+    payload = {
+        "ambulance_id": "amb-kumasi-01",
+        "scene_location": {
+            "city": "Kumasi",
+            "latitude": 6.6666,
+            "longitude": -1.6163,
+            "address": "Adum market area",
+        },
+        "patient": {
+            "age": 54,
+            "sex": "female",
+            "chief_complaint": "Crushing central chest pain with sweating and nausea for 40 minutes.",
+            "notes": "Pain radiates to left arm. No known allergies.",
+            "vitals": {
+                "heart_rate": 104,
+                "systolic_bp": 150,
+                "diastolic_bp": 88,
+                "respiratory_rate": 22,
+                "oxygen_saturation": 95,
+                "temperature_c": 36.7,
+                "gcs": 15,
+                "pain_score": 9,
+            },
+        },
+    }
+    incident_id = client.post("/incidents", json=payload).json()["id"]
+    client.post(f"/incidents/{incident_id}/ai-triage")
+
+    recommendations = client.post(f"/incidents/{incident_id}/recommendations").json()["recommendations"]
+
+    assert recommendations
+    assert {item["city"] for item in recommendations} == {"Kumasi"}
+    assert {item["hospital_id"] for item in recommendations} <= {"komfo-anokye", "kumasi-south", "suntreso-hospital"}
+
+
 def test_capacity_update_changes_obstetric_recommendation(client):
     payload = {
         "ambulance_id": "amb-accra-02",
@@ -73,4 +122,3 @@ def test_capacity_update_changes_obstetric_recommendation(client):
 
     assert first_before == "ridge-hospital"
     assert first_after != "ridge-hospital"
-

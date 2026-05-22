@@ -791,7 +791,7 @@ function getNarrationContent(stepId) {
       impact: `AI triage extracts core clinical signals from verbal paramedic telemetry instantly. This acts as a redundant clinical guardrail, ensuring dispatch errors are caught before route lock.`
     },
     "routing": {
-      text: `The deterministic multi-factor scoring algorithm evaluates all clinical centers in ${city}. It hard-filters out any centers missing critical device pathways (e.g., CT scanners for stroke), then ranks remaining candidates by capacity (25%), clinical fit (40%), ETA (20%), and local ER overcrowding (10%).`,
+      text: `The deterministic multi-factor scoring algorithm evaluates clinical centers in the ${city} incident region only. It hard-filters out any regional centers missing critical device pathways (e.g., CT scanners for stroke), then ranks remaining candidates by capacity (25%), clinical fit (40%), ETA (20%), and local ER overcrowding (10%).`,
       impact: `Deterministic mathematical scoring guarantees the patient goes to the highest-scoring matching clinic, bypassing overcrowded facilities and eliminating immediate destination diversion delays.`
     },
     "destination": {

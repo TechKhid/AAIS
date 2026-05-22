@@ -263,7 +263,7 @@ LLM safety behavior:
 
 ## Routing Engine
 
-Hospital ranking is deterministic and explainable. It uses structured triage requirements plus seeded hospital capability, capacity, specialist, ETA, ER load, and patient continuity data.
+Hospital ranking is deterministic and explainable. It first limits candidates to hospitals in the incident region, using the incident scene city in this MVP, then scores those regional hospitals with structured triage requirements plus seeded hospital capability, capacity, specialist, ETA, ER load, and patient continuity data.
 
 Weights:
 
@@ -400,7 +400,7 @@ Each session starts with seven pending steps:
 |:---|:---|:---|:---|
 | `dispatch` | Dispatch and patient pickup | Creates an incident from the selected scenario, links a patient record when possible, assigns the scenario ambulance, records `incident.created`. | Incident ID, assigned ambulance, active incident state |
 | `ai_triage` | LLM-assisted triage | Calls the selected LLM provider for structured triage, stores acuity/pathway/capability/specialist requirements, records remote clinician review. | `triage_signal`, incident status `triaged` |
-| `routing` | Hospital recommendation | Calls deterministic routing against current hospitals, capacities, specialists, ETA, ER load, and patient continuity. | Ranked recommendations, score breakdowns, blocked flags |
+| `routing` | Hospital recommendation | Calls deterministic routing against hospitals in the incident region, then scores current capacity, specialists, ETA, ER load, and patient continuity. | Regional ranked recommendations, score breakdowns, blocked flags |
 | `destination` | Destination confirmation | Selects the top unblocked recommendation and stores it as the receiving hospital. | `selected_hospital_id`, ambulance status `en_route` |
 | `prealert` | Hospital pre-alert | Calls the selected LLM provider to draft a concise hospital alert, sends it through the mock notification gateway. | Notification event, incident status `notified` |
 | `transport` | Ambulance transport update | Moves ambulance coordinates partway toward the destination and records transport progress. | Updated ambulance location and status, incident status `en_route` |

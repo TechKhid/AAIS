@@ -25,9 +25,15 @@ class RoutingService:
         if not incident.triage_signal:
             raise ValueError("AI triage is required before routing.")
 
+        region = _normalize_region(incident.scene_location.city)
+        regional_hospitals = [
+            hospital
+            for hospital in self.store.hospitals.values()
+            if _normalize_region(hospital.city) == region
+        ]
         recommendations = [
             self._score_hospital(incident=incident, hospital=hospital)
-            for hospital in self.store.hospitals.values()
+            for hospital in regional_hospitals
         ]
         return sorted(recommendations, key=lambda item: (item.blocked, -item.score, item.route.eta_minutes))
 
@@ -190,3 +196,6 @@ def _build_reasons(
 def _normalize(value: str) -> str:
     return value.strip().lower().replace("-", "_").replace(" ", "_")
 
+
+def _normalize_region(value: str) -> str:
+    return value.strip().casefold()
