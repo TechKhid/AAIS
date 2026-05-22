@@ -7,6 +7,9 @@ def test_health_reports_llm_status(client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
+    assert body["llm_provider"] == "lmstudio"
+    assert body["llm_available"] is True
+    assert body["llm_model"]
     assert body["lmstudio_available"] is True
     assert body["lmstudio_model"]
 

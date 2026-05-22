@@ -133,7 +133,7 @@ class InMemoryStore:
         saved = self.save_incident(updated)
         self.record_event(
             event_type="incident.ai_triaged",
-            actor="lmstudio",
+            actor="llm-provider",
             message=f"LLM triage completed for {incident_id}: {triage.acuity}.",
             related_ids={"incident_id": incident_id},
             payload={"care_pathways": triage.care_pathways, "required_capabilities": triage.required_capabilities},

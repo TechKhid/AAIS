@@ -2,19 +2,19 @@
 
 AAIS is an API-first FastAPI simulator for emergency medical coordination in a Ghana pilot context. It models the handoff between ambulance dispatch, LLM-assisted triage, deterministic hospital routing, hospital pre-alerts, ambulance transport updates, command-center monitoring, and digital handover.
 
-The application is intentionally shaped like a production service boundary while keeping the MVP simple: state is in memory, external stakeholder systems are mocked, and LM Studio is used as the required local LLM runtime for clinical text and triage extraction.
+The application is intentionally shaped like a production service boundary while keeping the MVP simple: state is in memory, external stakeholder systems are mocked, and the LLM layer can use either local LM Studio or NVIDIA NIM APIs for clinical text and triage extraction.
 
 ## What This Project Does
 
 - Creates emergency incidents from ambulance scene reports.
 - Links patients to mock Ghana Card, NHIS, and FHIR-style patient records when identifiers match seeded data.
-- Uses a local LM Studio model to extract structured triage signals from ambulance notes.
+- Uses LM Studio or NVIDIA NIM to extract structured triage signals from ambulance notes.
 - Ranks hospitals with deterministic, explainable routing logic.
 - Blocks unsafe destinations when critical required capabilities are missing.
 - Generates hospital pre-alert and ambulance-to-hospital handover text with the LLM.
 - Provides a browser-based command-center simulator at `/`.
 - Exposes API docs at `/docs`.
-- Includes automated tests with fake LLM clients so the test suite does not require LM Studio.
+- Includes automated tests with fake LLM clients so the test suite does not require LM Studio or NVIDIA NIM.
 
 ## Current MVP Boundaries
 
@@ -30,7 +30,7 @@ Mocked integrations include:
 - Hospital alerting and notification delivery
 - Remote command-center clinician review
 
-Real runtime LLM calls do not fall back to fake responses. If LM Studio or the configured model is unavailable, LLM-backed API endpoints return `503`, and simulation sessions pause with an explicit error.
+Real runtime LLM calls do not fall back to fake responses. If the selected LLM provider or configured model is unavailable, LLM-backed API endpoints return `503`, and simulation sessions pause with an explicit error.
 
 ## Tech Stack
 
@@ -38,7 +38,7 @@ Real runtime LLM calls do not fall back to fake responses. If LM Studio or the c
 - FastAPI
 - Pydantic v2
 - Uvicorn
-- OpenAI Python SDK pointed at LM Studio's OpenAI-compatible API
+- OpenAI Python SDK pointed at LM Studio or NVIDIA NIM OpenAI-compatible APIs
 - httpx
 - pytest
 - Vanilla HTML, CSS, and JavaScript frontend served by FastAPI
@@ -54,14 +54,14 @@ app/
   seed_data.py             Mock Ghana pilot fixtures
   store.py                 Thread-safe in-memory state store
   routers/
-    health.py              LM Studio and app health endpoint
+    health.py              LLM provider and app health endpoint
     incidents.py           Incident lifecycle endpoints
     hospitals.py           Hospital list and capacity update endpoints
     ambulances.py          Ambulance list and telemetry update endpoints
     command.py             Command-center overview and event stream
     simulation.py          Simulation scenario and session endpoints
   services/
-    llm_client.py          LM Studio client, output parsing, normalization
+    llm_client.py          LM Studio/NVIDIA NIM client, output parsing, normalization
     routing.py             Deterministic hospital ranking engine
     mocks.py               Mock stakeholder integration service
     simulation.py          Scenario orchestration engine
@@ -83,12 +83,21 @@ tests/
 Copy `.env.example` to `.env` if you want to override defaults.
 
 ```env
+LLM_PROVIDER=lmstudio
 LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
 LMSTUDIO_MODEL=qwen/qwen3.5-9b
+NVIDIA_NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_NIM_MODEL=nvidia/nemotron-3-super-120b-a12b
+NVIDIA_NIM_API_KEY=
 LLM_TIMEOUT_SECONDS=30
 ```
 
-`LMSTUDIO_MODEL` may be either the configured full model id or a short LM Studio-loaded alias. The health check resolves aliases where possible.
+`LLM_PROVIDER` accepts:
+
+- `lmstudio` for local LM Studio. This remains the default.
+- `nvidia_nim` for NVIDIA NIM APIs.
+
+`LMSTUDIO_MODEL` may be either the configured full model id or a short LM Studio-loaded alias. For NVIDIA NIM, `NVIDIA_NIM_BASE_URL` defaults to NVIDIA's hosted API endpoint, and `NVIDIA_NIM_MODEL` should be a model id available to that endpoint. The app also reads `NVIDIA_API_KEY` or `NIM_API_KEY` if `NVIDIA_NIM_API_KEY` is not set.
 
 ## Setup And Run
 
@@ -105,21 +114,37 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-3. Start LM Studio and enable the local OpenAI-compatible server.
+3. Choose an LLM provider.
 
-4. Load the configured model in LM Studio. The default is:
+For local LM Studio, keep `LLM_PROVIDER=lmstudio`, start LM Studio, enable the local OpenAI-compatible server, and load the configured model. The default is:
 
 ```text
 qwen/qwen3.5-9b
 ```
 
-5. Start the API.
+For hosted NVIDIA NIM, set these values in `.env` or in the current `cmd` session:
+
+```cmd
+set "LLM_PROVIDER=nvidia_nim"
+set "NVIDIA_NIM_API_KEY=<your NVIDIA API key>"
+set "NVIDIA_NIM_MODEL=nvidia/nemotron-3-super-120b-a12b"
+```
+
+For a self-hosted NIM container, point the base URL at that container's OpenAI-compatible `/v1` endpoint:
+
+```cmd
+set "LLM_PROVIDER=nvidia_nim"
+set "NVIDIA_NIM_BASE_URL=http://127.0.0.1:8000/v1"
+set "NVIDIA_NIM_MODEL=<model id from /v1/models>"
+```
+
+4. Start the API.
 
 ```cmd
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-6. Open the simulator or API docs.
+5. Open the simulator or API docs.
 
 ```text
 http://127.0.0.1:8000
@@ -127,6 +152,46 @@ http://127.0.0.1:8000/docs
 ```
 
 On this workstation, `C:\Users\stemaider\anaconda3\envs\stemaide-env\python.exe` has previously been used as a working runtime environment for this project.
+
+## LLM Provider Options
+
+### LM Studio
+
+LM Studio is the default provider and is best when you want everything local. The app checks both LM Studio's local management API and OpenAI-compatible `/models` endpoint, resolves short model aliases, and pauses LLM-backed flows when the configured model is not loaded.
+
+Minimum `.env` values:
+
+```env
+LLM_PROVIDER=lmstudio
+LMSTUDIO_BASE_URL=http://127.0.0.1:1234/v1
+LMSTUDIO_MODEL=qwen/qwen3.5-9b
+```
+
+### NVIDIA NIM
+
+NVIDIA NIM is useful when you want to run AAIS on a laptop without loading a local model. Hosted NIM uses NVIDIA's OpenAI-compatible API endpoint. Self-hosted NIM containers can also be used by changing `NVIDIA_NIM_BASE_URL`.
+
+Minimum hosted `.env` values:
+
+```env
+LLM_PROVIDER=nvidia_nim
+NVIDIA_NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_NIM_MODEL=nvidia/nemotron-3-super-120b-a12b
+NVIDIA_NIM_API_KEY=<your NVIDIA API key>
+```
+
+Known hosted chat model examples:
+
+- `nvidia/nemotron-3-super-120b-a12b`
+- `deepseek-ai/deepseek-v4-flash`
+
+Minimum self-hosted `.env` values:
+
+```env
+LLM_PROVIDER=nvidia_nim
+NVIDIA_NIM_BASE_URL=http://127.0.0.1:8000/v1
+NVIDIA_NIM_MODEL=<model id from /v1/models>
+```
 
 ## Health Check
 
@@ -137,14 +202,15 @@ GET /health
 The response includes:
 
 - App status
-- LM Studio availability
+- Active LLM provider
+- Active provider availability
 - Configured base URL
 - Configured model
 - Resolved model
-- Models reported by LM Studio
+- Models reported by the active provider
 - Detail message when the model is missing, unloaded, or unreachable
 
-If `/health` reports that the configured model is not loaded, load it in LM Studio or set `LMSTUDIO_MODEL` to a loaded model before running LLM-backed flows.
+If `/health` reports that the configured model is not loaded or listed, load the model in LM Studio, choose a loaded NIM model, or update the relevant model environment variable before running LLM-backed flows.
 
 ## Core System Flow
 
@@ -186,13 +252,13 @@ LLM-backed operations:
 - Hospital pre-alert summary generation
 - Digital handover note generation
 
-The app asks LM Studio for JSON-only triage output and then normalizes common variants. For example, "CT scan" normalizes to `ct`, "stroke specialist" normalizes to `neurologist`, and high or urgent acuity language normalizes to `red`.
+The app asks the selected provider for JSON-only triage output and then normalizes common variants. For example, "CT scan" normalizes to `ct`, "stroke specialist" normalizes to `neurologist`, and high or urgent acuity language normalizes to `red`.
 
 LLM safety behavior:
 
 - Empty or malformed triage JSON triggers a repair request.
 - Invalid repaired JSON returns a `502` response.
-- LM Studio connection, timeout, or unloaded-model failures return `503`.
+- Provider connection, timeout, auth, or unloaded-model failures return `503`.
 - Simulation pauses instead of inventing LLM output when the LLM is unavailable.
 
 ## Routing Engine
@@ -265,7 +331,7 @@ Seeded patient records:
 
 | Method | Path | Purpose |
 |:---|:---|:---|
-| `GET` | `/health` | App and LM Studio readiness |
+| `GET` | `/health` | App and active LLM provider readiness |
 
 ### Incidents
 
@@ -333,12 +399,12 @@ Each session starts with seven pending steps:
 | Step | Label | What Happens | Primary Outputs |
 |:---|:---|:---|:---|
 | `dispatch` | Dispatch and patient pickup | Creates an incident from the selected scenario, links a patient record when possible, assigns the scenario ambulance, records `incident.created`. | Incident ID, assigned ambulance, active incident state |
-| `ai_triage` | LLM-assisted triage | Calls LM Studio for structured triage, stores acuity/pathway/capability/specialist requirements, records remote clinician review. | `triage_signal`, incident status `triaged` |
+| `ai_triage` | LLM-assisted triage | Calls the selected LLM provider for structured triage, stores acuity/pathway/capability/specialist requirements, records remote clinician review. | `triage_signal`, incident status `triaged` |
 | `routing` | Hospital recommendation | Calls deterministic routing against current hospitals, capacities, specialists, ETA, ER load, and patient continuity. | Ranked recommendations, score breakdowns, blocked flags |
 | `destination` | Destination confirmation | Selects the top unblocked recommendation and stores it as the receiving hospital. | `selected_hospital_id`, ambulance status `en_route` |
-| `prealert` | Hospital pre-alert | Calls LM Studio to draft a concise hospital alert, sends it through the mock notification gateway. | Notification event, incident status `notified` |
+| `prealert` | Hospital pre-alert | Calls the selected LLM provider to draft a concise hospital alert, sends it through the mock notification gateway. | Notification event, incident status `notified` |
 | `transport` | Ambulance transport update | Moves ambulance coordinates partway toward the destination and records transport progress. | Updated ambulance location and status, incident status `en_route` |
-| `handover` | Digital handover | Calls LM Studio to draft structured ED handover using scenario treatments, observations, and final vitals. | Handover summary, incident status `handover_complete`, ambulance status `at_hospital` |
+| `handover` | Digital handover | Calls the selected LLM provider to draft structured ED handover using scenario treatments, observations, and final vitals. | Handover summary, incident status `handover_complete`, ambulance status `at_hospital` |
 
 ### Session Status Rules
 
@@ -346,7 +412,7 @@ Each session starts with seven pending steps:
 |:---|:---|
 | `ready` | Session exists but no step has completed. |
 | `running` | At least one step is active or complete, and more work remains. |
-| `paused` | LLM dependency was unavailable or returned invalid output. User can fix LM Studio and step again. |
+| `paused` | LLM dependency was unavailable or returned invalid output. User can fix the selected provider and step again. |
 | `failed` | Non-LLM unexpected error occurred and was recorded. |
 | `completed` | All seven steps completed successfully. |
 
@@ -354,9 +420,9 @@ Each session starts with seven pending steps:
 
 The simulation pauses on:
 
-- LM Studio not reachable
+- Active LLM provider not reachable
 - Configured model missing or unloaded
-- LM Studio timeout
+- Active LLM provider timeout
 - Invalid LLM response after parsing or repair
 
 Paused sessions preserve:
@@ -373,7 +439,7 @@ The simulator UI at `/` lets an operator:
 
 - Select a scenario.
 - Start, step, run, or reset a session.
-- Monitor LM Studio readiness.
+- Monitor active LLM provider readiness.
 - See active incidents, ambulances, ER beds, and average ER load.
 - Watch a local operating-picture map for the focused city.
 - Review patient vitals and LLM triage output.
@@ -468,6 +534,27 @@ python scripts\smoke_flow.py
 
 The smoke script checks health, creates a stroke incident, runs triage, ranks hospitals, selects a destination, sends a pre-alert, completes handover, and prints event count.
 
+To test NVIDIA NIM chat connectivity directly against the two hosted chat models above:
+
+```cmd
+set "NVIDIA_NIM_API_KEY=<your NVIDIA API key>"
+C:\Users\stemaider\anaconda3\envs\aiis-env\python.exe scripts\nim_model_smoke.py
+```
+
+To test one model at a time:
+
+```cmd
+C:\Users\stemaider\anaconda3\envs\aiis-env\python.exe scripts\nim_model_smoke.py nvidia/nemotron-3-super-120b-a12b
+C:\Users\stemaider\anaconda3\envs\aiis-env\python.exe scripts\nim_model_smoke.py deepseek-ai/deepseek-v4-flash
+```
+
+To test the AAIS client path or structured triage path:
+
+```cmd
+C:\Users\stemaider\anaconda3\envs\aiis-env\python.exe scripts\nim_model_smoke.py --client-chat nvidia/nemotron-3-super-120b-a12b
+C:\Users\stemaider\anaconda3\envs\aiis-env\python.exe scripts\nim_model_smoke.py --triage nvidia/nemotron-3-super-120b-a12b
+```
+
 ## Automated Tests
 
 Run the test suite:
@@ -476,7 +563,7 @@ Run the test suite:
 python -m pytest
 ```
 
-Tests use `FakeLLM` and `UnavailableLLM` from `tests/conftest.py`, so they verify normal and unavailable LLM behavior without requiring LM Studio.
+Tests use `FakeLLM` and `UnavailableLLM` from `tests/conftest.py`, so they verify normal and unavailable LLM behavior without requiring LM Studio or NVIDIA NIM.
 
 Coverage includes:
 
@@ -484,7 +571,7 @@ Coverage includes:
 - Full happy-path incident lifecycle
 - Recommendation precondition checks
 - LLM unavailable `503` handling
-- LM Studio response parsing and normalization
+- LLM response parsing and normalization
 - Deterministic routing behavior
 - Capacity updates changing routing outcomes
 - Simulation scenario listing, full run, pause behavior, and reset

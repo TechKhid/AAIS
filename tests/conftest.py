@@ -11,8 +11,12 @@ from app.services.llm_client import LMStudioUnavailable
 class FakeLLM:
     async def health(self) -> dict:
         return {
+            "provider": "lmstudio",
+            "base_url": "http://127.0.0.1:1234/v1",
+            "model": "qwen/qwen3.5-9b",
             "available": True,
             "models": ["qwen/qwen3.5-9b"],
+            "resolved_model": "qwen/qwen3.5-9b",
             "detail": None,
         }
 
@@ -124,4 +128,3 @@ def stroke_payload() -> dict:
             },
         },
     }
-

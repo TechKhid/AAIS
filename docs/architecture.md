@@ -4,7 +4,7 @@
 
 The MVP is a FastAPI modular monolith with in-memory state. It mocks NAS dispatch, ambulance GPS, hospital capacity, bed/barcode tracking, EHR/FHIR lookup, Ghana Card/NHIS lookup, traffic/ETA, notification delivery, and command-center monitoring.
 
-LM Studio is a required runtime dependency for:
+The LLM layer supports LM Studio and NVIDIA NIM as selectable OpenAI-compatible providers for:
 
 - structured triage extraction
 - care pathway and capability inference
@@ -22,6 +22,8 @@ The routing engine remains deterministic. It scores each hospital with these wei
 Critical missing capabilities such as ICU, oxygen, CT, surgical team, neonatal support, or ventilator block a hospital. Non-critical gaps reduce the score and are shown in the reasons.
 
 The simulation engine is a thin orchestration layer over the same production-shaped services. It owns scenario sessions and advances them through dispatch, AI triage, routing, destination selection, hospital pre-alert, transport progress, and handover. It pauses when the LLM is unavailable so the demo keeps the same safety rule as the API.
+
+LM Studio remains the default local provider. NVIDIA NIM can be selected with `LLM_PROVIDER=nvidia_nim` for hosted API usage or self-hosted NIM containers, which makes the demo easier to run on laptops that should not load a local model.
 
 ## Production Evolution
 

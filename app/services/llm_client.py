@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -23,64 +24,148 @@ class LLMResponseError(Exception):
 class LMStudioClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.resolved_model = settings.lmstudio_model
+        self.provider = settings.llm_provider
+        self.provider_label = _provider_label(settings.llm_provider)
+        self.base_url = _provider_base_url(settings)
+        self.model = _provider_model(settings)
+        self.api_key = _provider_api_key(settings)
+        self.resolved_model = self.model
         self.client = AsyncOpenAI(
-            base_url=settings.lmstudio_base_url,
-            api_key="lm-studio",
+            base_url=self.base_url,
+            api_key=self.api_key or "not-used",
             timeout=settings.llm_timeout_seconds,
+            max_retries=0,
         )
 
     async def health(self) -> dict[str, Any]:
-        v1_url = f"{self.settings.lmstudio_base_url}/models"
-        v0_url = self.settings.lmstudio_base_url.replace("/v1", "/api/v0") + "/models"
+        if self.provider == "nvidia_nim":
+            return await self._nvidia_nim_health()
+        return await self._lmstudio_health()
+
+    async def _lmstudio_health(self) -> dict[str, Any]:
+        v1_url = f"{self.base_url}/models"
+        v0_url = self.base_url.replace("/v1", "/api/v0") + "/models"
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 v0_response = await client.get(v0_url)
                 if v0_response.status_code == 200:
                     body = v0_response.json()
                     models = [item.get("id", "") for item in body.get("data", []) if item.get("id")]
-                    aliases = _model_aliases(self.settings.lmstudio_model)
+                    aliases = _model_aliases(self.model)
                     configured = next(
                         (item for item in body.get("data", []) if item.get("id") in aliases),
                         None,
                     )
                     if configured:
                         state = configured.get("state", "unknown")
-                        resolved_model = configured.get("id", self.settings.lmstudio_model)
+                        resolved_model = configured.get("id", self.model)
                         self.resolved_model = resolved_model
                         detail = None
                         if state != "loaded":
                             detail = f"Configured model is {state}. Load it in LM Studio or set LMSTUDIO_MODEL."
-                        elif resolved_model != self.settings.lmstudio_model:
-                            detail = f"Using loaded LM Studio model {resolved_model} for configured {self.settings.lmstudio_model}."
-                        return {
-                            "available": state == "loaded",
-                            "models": models,
-                            "resolved_model": resolved_model,
-                            "detail": detail,
-                        }
+                        elif resolved_model != self.model:
+                            detail = f"Using loaded LM Studio model {resolved_model} for configured {self.model}."
+                        return self._health_payload(
+                            available=state == "loaded",
+                            models=models,
+                            resolved_model=resolved_model,
+                            detail=detail,
+                        )
 
                 response = await client.get(v1_url)
                 response.raise_for_status()
         except Exception as exc:  # noqa: BLE001 - health should convert all connection failures.
-            return {
-                "available": False,
-                "models": [],
-                "resolved_model": self.resolved_model,
-                "detail": f"LM Studio unavailable: {exc}",
-            }
+            return self._health_payload(
+                available=False,
+                models=[],
+                resolved_model=self.resolved_model,
+                detail=f"LM Studio unavailable: {exc}",
+            )
 
         body = response.json()
         models = [item.get("id", "") for item in body.get("data", []) if item.get("id")]
-        aliases = _model_aliases(self.settings.lmstudio_model)
-        resolved_model = next((model for model in models if model in aliases), self.settings.lmstudio_model)
+        aliases = _model_aliases(self.model)
+        resolved_model = next((model for model in models if model in aliases), self.model)
         self.resolved_model = resolved_model
         is_available = resolved_model in models
+        return self._health_payload(
+            available=is_available,
+            models=models,
+            resolved_model=resolved_model,
+            detail=None if is_available else "Configured model not listed by LM Studio.",
+        )
+
+    async def _nvidia_nim_health(self) -> dict[str, Any]:
+        if _hosted_nvidia_nim(self.base_url) and not self.settings.nvidia_nim_api_key:
+            return self._health_payload(
+                available=False,
+                models=[],
+                resolved_model=self.resolved_model,
+                detail="NVIDIA NIM API key missing. Set NVIDIA_NIM_API_KEY or NVIDIA_API_KEY.",
+            )
+
+        headers = _auth_headers(self.api_key)
+        ready_url = f"{self.base_url}/health/ready"
+        models_url = f"{self.base_url}/models"
+
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                if not _hosted_nvidia_nim(self.base_url):
+                    ready_response = await client.get(ready_url, headers=headers)
+                    if ready_response.status_code >= 400:
+                        return self._health_payload(
+                            available=False,
+                            models=[],
+                            resolved_model=self.resolved_model,
+                            detail=f"NVIDIA NIM is not ready: HTTP {ready_response.status_code}.",
+                        )
+
+                response = await client.get(models_url, headers=headers)
+                if response.status_code in {401, 403}:
+                    return self._health_payload(
+                        available=False,
+                        models=[],
+                        resolved_model=self.resolved_model,
+                        detail="NVIDIA NIM authentication failed. Check NVIDIA_NIM_API_KEY or NVIDIA_API_KEY.",
+                    )
+                response.raise_for_status()
+        except Exception as exc:  # noqa: BLE001 - health should convert all connection failures.
+            return self._health_payload(
+                available=False,
+                models=[],
+                resolved_model=self.resolved_model,
+                detail=f"NVIDIA NIM unavailable: {exc}",
+            )
+
+        body = response.json()
+        models = [item.get("id", "") for item in body.get("data", []) if item.get("id")]
+        aliases = _model_aliases(self.model)
+        resolved_model = next((model for model in models if model in aliases), self.model)
+        self.resolved_model = resolved_model
+        is_available = resolved_model in models
+        return self._health_payload(
+            available=is_available,
+            models=models,
+            resolved_model=resolved_model,
+            detail=None if is_available else "Configured NVIDIA NIM model not listed by /models.",
+        )
+
+    def _health_payload(
+        self,
+        available: bool,
+        models: list[str],
+        resolved_model: str | None,
+        detail: str | None,
+    ) -> dict[str, Any]:
         return {
-            "available": is_available,
+            "provider": self.provider,
+            "provider_label": self.provider_label,
+            "base_url": self.base_url,
+            "model": self.model,
+            "available": available,
             "models": models,
             "resolved_model": resolved_model,
-            "detail": None if is_available else "Configured model not listed by LM Studio.",
+            "detail": detail,
         }
 
     async def triage_incident(self, incident: Incident) -> TriageSignal:
@@ -127,19 +212,19 @@ class LMStudioClient:
                 "summary": "one sentence ambulance summary",
                 "rationale": "short clinical rationale",
                 "confidence": 0.0,
-                "source_model": self.settings.lmstudio_model,
+                "source_model": self.model,
             },
             "patient": patient_json,
             "linked_patient_record": record_json,
             "scene_location": incident.scene_location.model_dump(mode="json"),
         }
         payload = await self._chat_json(system=system, user=json.dumps(user, ensure_ascii=False))
-        payload["source_model"] = self.settings.lmstudio_model
+        payload["source_model"] = self.model
         payload = _normalize_triage_payload(payload)
         try:
             return TriageSignal.model_validate(payload)
         except ValidationError as exc:
-            raise LLMResponseError(f"LM Studio returned invalid triage JSON: {exc}") from exc
+            raise LLMResponseError(f"{self.provider_label} returned invalid triage JSON: {exc}") from exc
 
     async def generate_prealert(self, incident: Incident) -> str:
         await self.ensure_available()
@@ -173,7 +258,7 @@ class LMStudioClient:
     async def ensure_available(self) -> None:
         health = await self.health()
         if not health["available"]:
-            detail = health.get("detail") or "LM Studio is not ready."
+            detail = health.get("detail") or f"{self.provider_label} is not ready."
             raise LMStudioUnavailable(detail)
 
     async def _chat_json(self, system: str, user: str) -> dict[str, Any]:
@@ -186,7 +271,7 @@ class LMStudioClient:
                 return _parse_json_object(repaired)
             except json.JSONDecodeError as exc:
                 snippet = (repaired or content or "<empty response>").strip()[:500]
-                raise LLMResponseError(f"LM Studio did not return parseable JSON after repair: {snippet}") from exc
+                raise LLMResponseError(f"{self.provider_label} did not return parseable JSON after repair: {snippet}") from exc
 
     async def _repair_json(self, system: str, user: str, invalid_response: str) -> str:
         repair_user = json.dumps(
@@ -213,83 +298,200 @@ class LMStudioClient:
         content = await self._chat(system=system, user=user, json_mode=False)
         cleaned = content.strip()
         if not cleaned:
-            raise LLMResponseError("LM Studio returned an empty response.")
+            raise LLMResponseError(f"{self.provider_label} returned an empty response.")
         return cleaned
 
     async def _chat(self, system: str, user: str, json_mode: bool, tools: list[dict[str, Any]] | None = None) -> str:
         if json_mode:
             system = f"{system}\nJSON-only mode is mandatory. Do not explain. Do not think step by step."
             user = f"/no_think\n{user}\nReturn only the JSON object. Start with {{ and end with }}."
+        max_tokens = 1400 if json_mode else 350
+        if self.provider == "nvidia_nim" and json_mode:
+            max_tokens = 700
         kwargs: dict[str, Any] = {
             "model": self.resolved_model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "max_tokens": 1400 if json_mode else 350,
+            "max_tokens": max_tokens,
             "temperature": 0.1,
-            "extra_body": {
+        }
+        if self.provider == "lmstudio":
+            kwargs["extra_body"] = {
                 "chat_template_kwargs": {
                     "enable_thinking": False,
                 },
-            },
-        }
-        if tools:
+            }
+        if tools and self.provider == "lmstudio":
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "required"
 
-        try:
-            response = await self.client.chat.completions.create(**kwargs)
-        except BadRequestError as exc:
-            if _looks_unavailable(exc):
-                raise LMStudioUnavailable(f"LM Studio unavailable: {exc}") from exc
-            if "extra_body" in kwargs:
-                kwargs.pop("extra_body", None)
-                try:
-                    response = await self.client.chat.completions.create(**kwargs)
-                except BadRequestError as retry_exc:
-                    if _looks_unavailable(retry_exc):
-                        raise LMStudioUnavailable(f"LM Studio unavailable: {retry_exc}") from retry_exc
-                    raise LLMResponseError(f"LM Studio request was rejected: {retry_exc}") from retry_exc
-                except (APIConnectionError, APITimeoutError) as retry_exc:
-                    raise LMStudioUnavailable(f"LM Studio unavailable: {retry_exc}") from retry_exc
-                except APIError as retry_exc:
-                    if _looks_unavailable(retry_exc):
-                        raise LMStudioUnavailable(f"LM Studio unavailable: {retry_exc}") from retry_exc
-                    raise LLMResponseError(f"LM Studio API error: {retry_exc}") from retry_exc
-            else:
-                raise LLMResponseError(f"LM Studio request was rejected: {exc}") from exc
-        except (APIConnectionError, APITimeoutError) as exc:
-            raise LMStudioUnavailable(f"LM Studio unavailable: {exc}") from exc
-        except APIError as exc:
-            if _looks_unavailable(exc):
-                raise LMStudioUnavailable(f"LM Studio unavailable: {exc}") from exc
-            raise LLMResponseError(f"LM Studio API error: {exc}") from exc
+        response = await self._create_chat_completion(kwargs)
 
         message = response.choices[0].message
         return _message_text(message)
+
+    async def _create_chat_completion(self, kwargs: dict[str, Any]) -> Any:
+        if self.provider == "nvidia_nim":
+            return await self._create_nvidia_nim_chat_completion(kwargs)
+
+        attempts = _chat_request_attempts(kwargs)
+        last_bad_request: BadRequestError | None = None
+        for attempt in attempts:
+            try:
+                return await self.client.chat.completions.create(**attempt)
+            except BadRequestError as exc:
+                if _looks_unavailable(exc):
+                    raise LMStudioUnavailable(f"{self.provider_label} unavailable: {exc}") from exc
+                last_bad_request = exc
+            except (APIConnectionError, APITimeoutError) as exc:
+                raise LMStudioUnavailable(f"{self.provider_label} unavailable: {exc}") from exc
+            except APIError as exc:
+                if _looks_unavailable(exc):
+                    raise LMStudioUnavailable(f"{self.provider_label} unavailable: {exc}") from exc
+                raise LLMResponseError(f"{self.provider_label} API error: {exc}") from exc
+
+        assert last_bad_request is not None
+        raise LLMResponseError(f"{self.provider_label} request was rejected: {last_bad_request}") from last_bad_request
+
+    async def _create_nvidia_nim_chat_completion(self, kwargs: dict[str, Any]) -> Any:
+        attempts = _chat_request_attempts(kwargs)
+        last_error: str | None = None
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
+            for attempt in attempts:
+                payload = _nvidia_nim_payload(attempt)
+                try:
+                    response = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+                except httpx.TimeoutException as exc:
+                    raise LMStudioUnavailable(f"{self.provider_label} unavailable: {exc}") from exc
+                except httpx.HTTPError as exc:
+                    raise LMStudioUnavailable(f"{self.provider_label} unavailable: {exc}") from exc
+
+                if response.status_code in {401, 403}:
+                    raise LMStudioUnavailable(f"{self.provider_label} authentication failed.")
+                if response.status_code == 400 and ("tools" in payload or "tool_choice" in payload):
+                    last_error = response.text[:500]
+                    continue
+                if response.status_code >= 400:
+                    raise LLMResponseError(f"{self.provider_label} request failed with HTTP {response.status_code}: {response.text[:500]}")
+
+                body = response.json()
+                message = body["choices"][0]["message"]
+                return SimpleNamespace(
+                    choices=[
+                        SimpleNamespace(
+                            message=SimpleNamespace(
+                                content=message.get("content") or "",
+                                tool_calls=message.get("tool_calls"),
+                            )
+                        )
+                    ]
+                )
+
+        raise LLMResponseError(f"{self.provider_label} request was rejected: {last_error or 'unknown error'}")
+
+
+def _provider_label(provider: str) -> str:
+    return {
+        "lmstudio": "LM Studio",
+        "nvidia_nim": "NVIDIA NIM",
+    }.get(provider, provider)
+
+
+def _provider_base_url(settings: Settings) -> str:
+    if settings.llm_provider == "nvidia_nim":
+        return settings.nvidia_nim_base_url
+    return settings.lmstudio_base_url
+
+
+def _provider_model(settings: Settings) -> str:
+    if settings.llm_provider == "nvidia_nim":
+        return settings.nvidia_nim_model
+    return settings.lmstudio_model
+
+
+def _provider_api_key(settings: Settings) -> str:
+    if settings.llm_provider == "nvidia_nim":
+        return settings.nvidia_nim_api_key or "not-used"
+    return "lm-studio"
+
+
+def _hosted_nvidia_nim(base_url: str) -> bool:
+    return "integrate.api.nvidia.com" in base_url.lower()
+
+
+def _auth_headers(api_key: str | None) -> dict[str, str]:
+    if not api_key or api_key == "not-used":
+        return {}
+    return {"Authorization": f"Bearer {api_key}"}
+
+
+def _chat_request_attempts(kwargs: dict[str, Any]) -> list[dict[str, Any]]:
+    attempts: list[dict[str, Any]] = []
+
+    def add(candidate: dict[str, Any]) -> None:
+        if candidate not in attempts:
+            attempts.append(candidate)
+
+    add(dict(kwargs))
+    if "extra_body" in kwargs:
+        without_extra = dict(kwargs)
+        without_extra.pop("extra_body", None)
+        add(without_extra)
+    if "tools" in kwargs or "tool_choice" in kwargs:
+        without_tools = dict(kwargs)
+        without_tools.pop("extra_body", None)
+        without_tools.pop("tools", None)
+        without_tools.pop("tool_choice", None)
+        add(without_tools)
+    return attempts
+
+
+def _nvidia_nim_payload(kwargs: dict[str, Any]) -> dict[str, Any]:
+    allowed_keys = {"model", "messages", "max_tokens", "temperature", "tools", "tool_choice"}
+    return {key: value for key, value in kwargs.items() if key in allowed_keys}
 
 
 def _message_text(message: Any) -> str:
     parts: list[str] = []
     content = getattr(message, "content", None)
     _append_content(parts, content)
+    _append_tool_calls(parts, getattr(message, "tool_calls", None))
 
     if hasattr(message, "model_dump"):
         dumped = message.model_dump()
         for key in ["reasoning_content", "reasoning", "thinking", "response", "text"]:
             _append_content(parts, dumped.get(key))
+        _append_tool_calls(parts, dumped.get("tool_calls"))
         extra = dumped.get("model_extra")
         if isinstance(extra, dict):
             for key in ["reasoning_content", "reasoning", "thinking", "response", "text"]:
                 _append_content(parts, extra.get(key))
+            _append_tool_calls(parts, extra.get("tool_calls"))
 
     model_extra = getattr(message, "model_extra", None)
     if isinstance(model_extra, dict):
         for key in ["reasoning_content", "reasoning", "thinking", "response", "text"]:
             _append_content(parts, model_extra.get(key))
+        _append_tool_calls(parts, model_extra.get("tool_calls"))
 
     return "\n".join(part for part in parts if part).strip()
+
+
+def _append_tool_calls(parts: list[str], tool_calls: Any) -> None:
+    if not tool_calls:
+        return
+    for tool_call in tool_calls:
+        function = tool_call.get("function") if isinstance(tool_call, dict) else getattr(tool_call, "function", None)
+        if not function:
+            continue
+        arguments = function.get("arguments") if isinstance(function, dict) else getattr(function, "arguments", None)
+        _append_content(parts, arguments)
 
 
 def _append_content(parts: list[str], content: Any) -> None:

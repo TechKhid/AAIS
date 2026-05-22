@@ -232,6 +232,12 @@ class RecommendationResponse(ApiModel):
 class HealthResponse(ApiModel):
     app: str
     status: Literal["ok"]
+    llm_provider: Literal["lmstudio", "nvidia_nim"] = "lmstudio"
+    llm_available: bool
+    llm_base_url: str
+    llm_model: str
+    llm_resolved_model: str | None = None
+    llm_models: list[str] = Field(default_factory=list)
     lmstudio_available: bool
     lmstudio_base_url: str
     lmstudio_model: str

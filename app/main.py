@@ -28,7 +28,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description=(
             "API-first simulator for Ghana emergency response coordination. "
-            "Stakeholder systems are mocked; LM Studio is required for triage and handover assistance."
+            "Stakeholder systems are mocked; LM Studio or NVIDIA NIM can provide triage and handover assistance."
         ),
     )
     api.state.settings = settings

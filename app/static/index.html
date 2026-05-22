@@ -1,38 +1,268 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AAIS Emergency Intelligence Simulator</title>
-    <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/static/styles.css?v=20260514-map2" />
+    <title>AAIS Command & Intelligence Simulator</title>
+    <meta name="description" content="AAIS Ghana Pilot Emergency Intelligence Dashboard: AI Triage, Deterministic Routing, and Hospital pre-alerts." />
+    
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet GIS Mapping CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Custom CSS Styles -->
+    <link rel="stylesheet" href="/static/styles.css?v=20260522-rebuild" />
   </head>
   <body>
-    <header class="shell-header">
-      <div class="brand-block">
-        <div class="brand-mark">AIIS</div>
-        <div>
-          <h1>Emergency Intelligence Simulator</h1>
-          <p>National ambulance, hospital, and command-center flow for the Ghana pilot.</p>
+    <!-- 1. Architecture Briefing Overlay (Pitch Deck slide) -->
+    <div id="briefing-overlay" class="briefing-overlay">
+      <div class="briefing-backdrop"></div>
+      <div class="briefing-content">
+        <div class="briefing-header">
+          <div class="brand-badge">AAIS</div>
+          <h1>Ghana Pilot: Emergency Triage & Routing</h1>
+          <p class="subtitle font-display">Investor Briefing: Autonomous Triage, Deterministic Routing & Hospital Coordination</p>
+        </div>
+        
+        <div class="architecture-grid">
+          <div class="briefing-intro-card">
+            <h3>How AAIS Works</h3>
+            <p>AAIS is a nationwide emergency workflow engine designed to eliminate transit delay, ensure clinical-bed fit, and notify emergency rooms before ambulances arrive.</p>
+            <p class="subtext">This simulator demonstrates a live incident moving through our 7 architectural stages, highlighting how AI-driven clinical reasoning integrates with deterministic routing rules.</p>
+            
+            <div class="tech-stack-summary">
+              <div class="tech-item"><strong>Core:</strong> FastAPI, Python 3.11</div>
+              <div class="tech-item"><strong>AI Triage:</strong> Configurable LLM provider (LM Studio or NVIDIA NIM)</div>
+              <div class="tech-item"><strong>Routing:</strong> Dynamic Multi-Factor Scoring</div>
+            </div>
+            
+            <button id="start-briefing-demo" class="primary-btn pulse-glow" type="button">Start Simulator Demo</button>
+          </div>
+
+          <div class="briefing-flow-diagram">
+            <h4>7-Stage Architectural Pipeline</h4>
+            <div class="flow-steps-grid">
+              <div class="flow-step" data-step="1">
+                <div class="step-num">1</div>
+                <div class="step-desc">
+                  <strong>NAS Dispatch</strong>
+                  <span>Links Patient ID (Ghana Card, NHIS)</span>
+                  <small class="pill mock">Mock Database</small>
+                  <small class="pill prod">API Integration</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="2">
+                <div class="step-num">2</div>
+                <div class="step-desc">
+                  <strong>Ambulance Scene</strong>
+                  <span>Captures vitals, chief complaints</span>
+                  <small class="pill mock">Telemetry Seed</small>
+                  <small class="pill prod">Paramedic Mobile App</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="3">
+                <div class="step-num">3</div>
+                <div class="step-desc">
+                  <strong>AI Triage</strong>
+                  <span>Extracts acuity, pathways, capability requirements</span>
+                  <small class="pill mock">LLM Provider</small>
+                  <small class="pill prod">FHIR Triage Pipeline</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="4">
+                <div class="step-num">4</div>
+                <div class="step-desc">
+                  <strong>Deterministic Routing</strong>
+                  <span>Weighs capacity, clinical fit, ETA, ER load</span>
+                  <small class="pill mock">Scoring Engine</small>
+                  <small class="pill prod">Live GIS Routing</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="5">
+                <div class="step-num">5</div>
+                <div class="step-desc">
+                  <strong>Hospital Pre-Alert</strong>
+                  <span>Auto-generates & sends priority alerts to ER</span>
+                  <small class="pill mock">WebSocket Gateway</small>
+                  <small class="pill prod">WhatsApp / EHR API</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="6">
+                <div class="step-num">6</div>
+                <div class="step-desc">
+                  <strong>Ambulance Transport</strong>
+                  <span>Tracks patient vitals and ETA in real-time</span>
+                  <small class="pill mock">Step Telemetry</small>
+                  <small class="pill prod">Active GPS Streams</small>
+                </div>
+              </div>
+              <div class="flow-step" data-step="7">
+                <div class="step-num">7</div>
+                <div class="step-desc">
+                  <strong>Digital Handover</strong>
+                  <span>SBAR document generation & clinical signoff</span>
+                  <small class="pill mock">AI Summary</small>
+                  <small class="pill prod">HL7 FHIR EHR Write</small>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- 2. Shell Header -->
+    <header class="shell-header">
+      <div class="brand-block">
+        <div class="brand-mark">AAIS</div>
+        <div>
+          <h1>AAIS Command Center</h1>
+          <p>National Emergency Routing Pilot — Ghana Dispatch</p>
+        </div>
+      </div>
+      
+      <div class="nav-tabs">
+        <button id="tab-operations" class="tab-btn active" type="button">Live Operations</button>
+        <button id="tab-roadmap" class="tab-btn" type="button">Mock &rarr; Production Roadmap</button>
+      </div>
+
       <div class="header-actions">
-        <div class="model-status" id="llm-status">LM Studio checking</div>
-        <button class="ghost-button" id="reset-sim" type="button">Reset</button>
+        <div class="model-status" id="llm-status">LLM Provider Checking...</div>
+        <button class="icon-btn" id="theme-toggle" type="button" title="Toggle Dark/Light Mode">🌓</button>
+        <button class="ghost-btn" id="reset-sim" type="button">Reset simulation</button>
       </div>
     </header>
 
+    <!-- 3. App Shell -->
     <main class="app-shell">
       <aside class="scenario-rail">
         <div class="section-head">
-          <span>Scenarios</span>
+          <span>Incident Scenarios</span>
           <strong id="scenario-count">0</strong>
         </div>
         <div class="scenario-list" id="scenario-list"></div>
       </aside>
 
-      <section class="workspace">
-        <section class="ops-strip" aria-label="Operational metrics">
+      <!-- Main Workspace Section -->
+      <section class="workspace" id="workspace-operations">
+        
+        <!-- Guided Narration Panel -->
+        <div class="narration-deck">
+          <div class="narration-header">
+            <div class="narration-step-indicator">
+              <span id="narration-step-badge">STEP 0/7</span>
+              <strong id="narration-step-title">Select an Incident</strong>
+            </div>
+            
+            <div class="narration-controls">
+              <div class="autoplay-control">
+                <span class="muted">Auto-Play</span>
+                <label class="switch-toggle">
+                  <input type="checkbox" id="autoplay-toggle">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Speed Presets -->
+              <div class="speed-presets">
+                <span class="muted">Demo Speed:</span>
+                <button class="speed-preset-btn" id="speed-instant" data-speed="500"  type="button" title="Instant — no typewriter, 0.5s steps">⚡ Instant</button>
+                <button class="speed-preset-btn active" id="speed-fast"    data-speed="2000" type="button" title="Fast — 2s steps">🚀 Fast</button>
+                <button class="speed-preset-btn" id="speed-detailed" data-speed="4500" type="button" title="Detailed — 4.5s steps with full typewriter">📖 Detailed</button>
+              </div>
+
+              <div class="autoplay-speed">
+                <span id="speed-label">2.0s</span>
+                <input type="range" id="autoplay-speed-slider" min="500" max="6000" step="250" value="2000" title="Fine-tune step pause duration">
+              </div>
+
+              <div class="control-buttons">
+                <button id="start-session" class="primary-btn" type="button">Initialize Incident</button>
+                <button id="step-session" class="control-btn" type="button" disabled>Advance Step</button>
+                <button id="run-session" class="control-btn" type="button" disabled>Auto-Run</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="narration-body">
+            <div class="narrator-bubble">
+              <div class="narrator-icon">🎙️</div>
+              <div class="narrator-text-block">
+                <div class="eyebrow-accent">Live Flow Explanation</div>
+                <div id="narrator-text" class="narrator-text">Choose a patient incident scenario from the left panel, then initialize the workflow to launch the investor walkthrough.</div>
+              </div>
+            </div>
+            
+            <div class="narrator-impact-bubble">
+              <div class="impact-icon">💡</div>
+              <div class="impact-text-block">
+                <div class="eyebrow-accent">Why It Matters (Clinical & Business Value)</div>
+                <div id="narrator-impact" class="narrator-impact">Understanding the real-world impact helps prove the commercial viability of nationwide health-routing platforms. Select a scenario to begin.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Persistent Horizontal Data Flow Strip -->
+        <section class="data-flow-strip" aria-label="Pipeline Telemetry Dataflow">
+          <div class="flow-nodes">
+            <div class="flow-node active" id="node-dispatch" data-node="1">
+              <div class="node-icon">📞</div>
+              <div class="node-label">NAS Dispatch</div>
+              <div class="node-status">Waiting</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-ambulance" data-node="2">
+              <div class="node-icon">🚑</div>
+              <div class="node-label">Ambulance Scene</div>
+              <div class="node-status">Pending</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-triage" data-node="3">
+              <div class="node-icon">🧠</div>
+              <div class="node-label">AI Triage</div>
+              <div class="node-status">Pending</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-routing" data-node="4">
+              <div class="node-icon">⚖️</div>
+              <div class="node-label">Deterministic Routing</div>
+              <div class="node-status">Pending</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-prealert" data-node="5">
+              <div class="node-icon">🔔</div>
+              <div class="node-label">Hospital Pre-Alert</div>
+              <div class="node-status">Pending</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-transport" data-node="6">
+              <div class="node-icon">🗺️</div>
+              <div class="node-label">Transport Track</div>
+              <div class="node-status">Pending</div>
+            </div>
+            <div class="flow-line"><div class="flow-pulse"></div></div>
+            
+            <div class="flow-node" id="node-handover" data-node="7">
+              <div class="node-icon">📝</div>
+              <div class="node-label">EHR Handover</div>
+              <div class="node-status">Pending</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- National & Regional Operations Statistics -->
+        <section class="ops-strip" aria-label="System telemetry metrics">
           <div class="metric">
             <span id="metric-incidents-label">Active Incidents</span>
             <strong id="metric-incidents">0</strong>
@@ -51,80 +281,245 @@
           </div>
         </section>
 
-        <section class="control-deck">
-          <div>
-            <p class="eyebrow">Simulation Session</p>
-            <h2 id="session-title">No active session</h2>
-            <p id="session-subtitle" class="muted">Choose a scenario to initialize the command flow.</p>
-          </div>
-          <div class="control-buttons">
-            <button id="start-session" type="button">Start</button>
-            <button id="step-session" type="button">Step</button>
-            <button id="run-session" type="button">Run</button>
-          </div>
-        </section>
-
+        <!-- Main Visualizer Grid -->
         <section class="main-grid">
-          <section class="panel map-panel">
-            <div class="panel-title">
-              <h2>Live Operating Picture</h2>
-              <span id="map-caption">Fleet, hospitals, and incident scene</span>
-            </div>
-            <div class="ghana-map" id="map"></div>
-          </section>
+          
+          <!-- Column 1: Map + Telemetry -->
+          <div class="col-visuals">
+            
+            <!-- Dynamic Leaflet Map -->
+            <section class="panel map-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h2>Live Operational Picture</h2>
+                  <span id="map-caption">Real-time GPS tracking centered on incident node</span>
+                </div>
+                <div class="map-controls">
+                  <button id="btn-recenter-map" class="mini-ghost-btn" type="button">Recenter</button>
+                </div>
+              </div>
+              <div class="map-container-wrapper">
+                <div class="leaflet-map-element" id="map"></div>
+              </div>
+            </section>
+            
+            <!-- Fleet Telemetry and Hospital Load side-by-side -->
+            <div class="grid-sub-telemetry">
+              <section class="panel hospital-load-panel">
+                <div class="panel-title">
+                  <h2>Hospital Capacity Dashboard</h2>
+                  <span>Regional clinical resource beds</span>
+                </div>
+                <div id="hospital-load" class="hospital-grid"></div>
+              </section>
 
-          <section class="panel step-panel">
-            <div class="panel-title">
-              <h2>Flow Progress</h2>
-              <span id="session-state">Ready</span>
+              <section class="panel fleet-status-panel">
+                <div class="panel-title">
+                  <h2>NAS Ambulance Fleet</h2>
+                  <span>Vehicle coordinates & status</span>
+                </div>
+                <div id="fleet-list" class="fleet-list"></div>
+              </section>
             </div>
-            <div class="stepper" id="stepper"></div>
-          </section>
+          </div>
+          
+          <!-- Column 2: Intelligence & Clinical Triage -->
+          <div class="col-intelligence">
+            
+            <!-- Patient File & Identity Verification -->
+            <section class="panel patient-panel">
+              <div class="panel-title">
+                <h2>Patient Clinical Profile</h2>
+                <span id="patient-status">Awaiting incident initiation</span>
+              </div>
+              
+              <div class="patient-id-card-wrapper" id="patient-card-container">
+                <div id="patient-card" class="detail-card empty-state">No incident selected.</div>
+              </div>
+            </section>
+            
+            <!-- Multi-Factor Scored Recommendations -->
+            <section class="panel recommendations-panel">
+              <div class="panel-header-action">
+                <div class="panel-title">
+                  <h2>Deterministic Hospital Recommendation Engine</h2>
+                  <span>Weighing clinical capability match, travel times, and load filters</span>
+                </div>
+                <button id="toggle-routing-explainer" class="mini-ghost-btn" type="button">Explain Weights</button>
+              </div>
+              
+              <!-- Dynamic Routing Explainer (Collapsible) -->
+              <div id="routing-explainer-panel" class="routing-explainer hidden">
+                <div class="explainer-inner">
+                  <h4>Routing Engine Formula & Weights</h4>
+                  <p class="subtext">AAIS maps medical indicators to hospital capabilities, filtering out hospitals lacking absolute clinical requirements (e.g. Stroke clinical pathway requires CT scanner). Reaching surviving hospitals are graded via:</p>
+                  <table class="weights-table">
+                    <thead>
+                      <tr>
+                        <th>Weight Metric</th>
+                        <th>Target Value</th>
+                        <th>Impact</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>Clinical Capability (40%)</strong></td>
+                        <td>Matches triage pathways + staff</td>
+                        <td>Ensures specialized center assignment</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Capacity Resources (25%)</strong></td>
+                        <td>Available ER beds + ventilators</td>
+                        <td>Guarantees resources are free upon arrival</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Ambulance Travel ETA (20%)</strong></td>
+                        <td>GIS calculated drive ETA</td>
+                        <td>Minimizes travel delays</td>
+                      </tr>
+                      <tr>
+                        <td><strong>ER Load Balance (10%)</strong></td>
+                        <td>Busy ratio of the Emergency Room</td>
+                        <td>Prevents overcrowding and ambulance queueing</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Record Continuity (5%)</strong></td>
+                        <td>EHR preferred hospital history</td>
+                        <td>Leverages preexisting clinician relationships</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-          <section class="panel patient-panel">
-            <div class="panel-title">
-              <h2>Patient And Triage</h2>
-              <span id="patient-status">Awaiting pickup</span>
-            </div>
-            <div id="patient-card" class="detail-card empty-state">No incident selected.</div>
-          </section>
+              <div id="recommendations" class="ranking-list"></div>
+            </section>
 
-          <section class="panel recommendations-panel">
-            <div class="panel-title">
-              <h2>Hospital Ranking</h2>
-              <span>Explainable deterministic scoring</span>
-            </div>
-            <div id="recommendations" class="ranking-list"></div>
-          </section>
+            <!-- Pre-Alert & Digital Handover SBAR panel -->
+            <section class="panel alert-handover-panel">
+              <div class="panel-title">
+                <h2>Hospital Pre-Alert & SBAR Handover Note</h2>
+                <span>AI-triage generated notifications and clinical transitions</span>
+              </div>
+              
+              <div class="alert-handover-workspace">
+                <div id="pre-alert-display-card" class="document-display-card alert-inactive">
+                  <div class="doc-header">
+                    <div class="doc-badge icon-alert">PRE-ALERT MESSAGE</div>
+                    <span class="doc-status" id="pre-alert-status-badge">NOT SENT</span>
+                  </div>
+                  <div class="doc-content">
+                    <p class="muted placeholder-text">Pre-alert message will automatically be drafted and sent to the destination emergency room during Step 5 (Pre-Alert).</p>
+                    <div id="pre-alert-text-content" class="document-text clinical-alert-box hidden"></div>
+                  </div>
+                </div>
 
-          <section class="panel">
-            <div class="panel-title">
-              <h2>Hospital Load</h2>
-              <span>Mock capacity dashboard</span>
-            </div>
-            <div id="hospital-load" class="hospital-grid"></div>
-          </section>
+                <div id="handover-display-card" class="document-display-card handover-inactive">
+                  <div class="doc-header">
+                    <div class="doc-badge icon-handover">EHR DIGITAL HANDOVER (SBAR)</div>
+                    <span class="doc-status" id="handover-status-badge">AWAITING HANDOVER</span>
+                  </div>
+                  <div class="doc-content">
+                    <p class="muted placeholder-text">Structured clinical SBAR (Situation, Background, Assessment, Recommendation) note will compile upon ambulance arrival during Step 7 (Handover).</p>
+                    <div id="handover-text-content" class="document-text clinical-handover-box hidden"></div>
+                  </div>
+                </div>
+              </div>
+            </section>
 
-          <section class="panel">
-            <div class="panel-title">
-              <h2>Fleet Status</h2>
-              <span>Mock NAS telemetry</span>
-            </div>
-            <div id="fleet-list" class="fleet-list"></div>
-          </section>
+            <!-- Command Log / Events -->
+            <section class="panel timeline-panel">
+              <div class="panel-title">
+                <h2>Command Audit Timeline</h2>
+                <span>Traceable event logs of pilot system</span>
+              </div>
+              <div id="events" class="timeline"></div>
+            </section>
 
-          <section class="panel timeline-panel">
-            <div class="panel-title">
-              <h2>Command Timeline</h2>
-              <span>Audit-style event stream</span>
-            </div>
-            <div id="events" class="timeline"></div>
-          </section>
+          </div>
         </section>
+      </section>
+
+      <!-- Production Roadmap Section (Toggled View) -->
+      <section class="workspace hidden" id="workspace-roadmap">
+        <div class="roadmap-header">
+          <h2>National Scale Production Architecture</h2>
+          <p class="subtitle">Evolving from the AAIS Pilot Simulator to a highly available, nationwide emergency infrastructure.</p>
+        </div>
+
+        <div class="roadmap-grid">
+          <div class="roadmap-card">
+            <div class="card-icon">🗄️</div>
+            <h3>1. Data Persistence Layer</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: In-Memory / Python Session Store</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: PostgreSQL + PostGIS (GIS Spatial) + Redis Cache</span>
+            </div>
+            <p>Moving from ephemeral local session dicts to structured database schemas with indexing on latitude/longitude spatial coordinates, optimized for complex municipal geometries.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="card-icon">🚀</div>
+            <h3>2. Event Streaming & Telemetry</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: Periodic HTTP API polling</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: Apache Kafka Cluster / WebSockets</span>
+            </div>
+            <p>Supporting real-time GPS telemetry from thousands of mobile NAS units and hospital bed sensors. Event streams ensure instantaneous UI synchronization without taxing server loads.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="card-icon">🔒</div>
+            <h3>3. Enterprise Security & DPA Compliance</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: Public routes, mock IDs</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: OpenID Connect, AES-256 Patient Cryptography</span>
+            </div>
+            <p>Full integration with Keycloak/Auth0 for Role-Based Access Controls. Encryption-at-rest for sensitive clinical patient records matching the strict rules of the Ghana Data Protection Act.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="card-icon">🔌</div>
+            <h3>4. Integrated National APIs</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: Mocked JSON Seeding</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: GH Card Registry API + NHIS Eligibility Gateway</span>
+            </div>
+            <p>Direct connectivity with the National Identification Authority (NIA) to pull verified demographic snapshots via fingerprints or card numbers, linking patients automatically with national insurance eligibility profiles.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="card-icon">🤖</div>
+            <h3>5. Clinical LLM Guardianship</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: LM Studio or NVIDIA NIM provider</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: Redundant LLM Ensemble + Human Verification</span>
+            </div>
+            <p>Triage prompts route to parallel specialized clinical models with fallback strategies. High-acuity decisions require physical dispatcher confirmation on confidence drop, avoiding model hallucination risks.</p>
+          </div>
+
+          <div class="roadmap-card">
+            <div class="card-icon">📟</div>
+            <h3>6. ER ERX pre-alert delivery</h3>
+            <div class="roadmap-badge-comparison">
+              <span class="badge-pill mock">Pilot: Web-socket telemetry rendering</span>
+              <span class="badge-arrow">&rarr;</span>
+              <span class="badge-pill prod">Production: WhatsApp ER Dispatch Bot, SMS & EHR FHIR Push</span>
+            </div>
+            <p>Ensuring ER clinicians get alerts immediately by broadcasting to critical clinical WhatsApp groups, Twilio SMS fallback channels, and writing directly to their internal electronic hospital health record systems.</p>
+          </div>
+        </div>
       </section>
     </main>
 
     <div class="toast-stack" id="toast-stack"></div>
-    <script src="/static/app.js?v=20260514-map2"></script>
+
+    <!-- Main JavaScript Simulator Application -->
+    <script src="/static/app.js?v=20260522-rebuild"></script>
   </body>
 </html>
