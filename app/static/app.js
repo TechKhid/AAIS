@@ -16,6 +16,11 @@ const state = {
 const els = {
   scenarioList: document.querySelector("#scenario-list"),
   scenarioCount: document.querySelector("#scenario-count"),
+  llmProviderCard: document.querySelector("#llm-provider-card"),
+  llmProviderLabel: document.querySelector("#llm-provider-label"),
+  llmProviderDetail: document.querySelector("#llm-provider-detail"),
+  llmBriefingProvider: document.querySelector("#llm-briefing-provider"),
+  llmFlowProvider: document.querySelector("#llm-flow-provider"),
   llmStatus: document.querySelector("#llm-status"),
   start: document.querySelector("#start-session"),
   step: document.querySelector("#step-session"),
@@ -474,19 +479,60 @@ function render() {
 function renderHealth() {
   const health = state.health;
   if (!health) {
-    els.llmStatus.textContent = "Offline: Backend Checked";
-    els.llmStatus.className = "model-status warn";
+    setProviderDisplay({
+      available: false,
+      providerKey: "unknown",
+      provider: "LLM Provider",
+      model: "Backend health unavailable",
+      statusText: "OFFLINE",
+      detail: "The API health check did not return provider state."
+    });
     return;
   }
   const available = health.llm_available ?? health.lmstudio_available;
   const model = health.llm_model || health.lmstudio_model;
-  const provider = providerLabel(health.llm_provider || "lmstudio");
-  els.llmStatus.textContent = available
-    ? `${provider} Active: ${model.split("/").pop()}`
-    : `${provider} Blocked: ${model}`;
-  els.llmStatus.title = health.detail || "Clinical reasoning active";
-  els.llmStatus.classList.toggle("ok", available);
-  els.llmStatus.classList.toggle("warn", !available);
+  const providerKey = health.llm_provider || "lmstudio";
+  const provider = providerLabel(providerKey);
+  const detail = providerDetail(providerKey, model, available, health.detail);
+  setProviderDisplay({
+    available,
+    providerKey,
+    provider,
+    model,
+    statusText: available ? "ACTIVE" : "BLOCKED",
+    detail,
+    title: [
+      `Provider: ${provider}`,
+      `Model: ${model}`,
+      `Endpoint: ${health.llm_base_url || health.lmstudio_base_url || "unknown"}`,
+      health.detail ? `Detail: ${health.detail}` : null
+    ].filter(Boolean).join("\n")
+  });
+}
+
+function setProviderDisplay({ available, providerKey, provider, model, statusText, detail, title }) {
+  const shortModel = shortModelName(model);
+  if (els.llmProviderLabel) els.llmProviderLabel.textContent = provider;
+  if (els.llmStatus) {
+    els.llmStatus.textContent = statusText;
+    els.llmStatus.className = `model-status ${available ? "ok" : "warn"}`;
+  }
+  if (els.llmProviderDetail) {
+    els.llmProviderDetail.textContent = detail || shortModel;
+  }
+  if (els.llmProviderCard) {
+    els.llmProviderCard.classList.toggle("ok", available);
+    els.llmProviderCard.classList.toggle("warn", !available);
+    els.llmProviderCard.classList.toggle("provider-nim", providerKey === "nvidia_nim");
+    els.llmProviderCard.classList.toggle("provider-lmstudio", providerKey === "lmstudio");
+    els.llmProviderCard.title = title || `${provider}: ${model}`;
+  }
+  if (els.llmBriefingProvider) {
+    els.llmBriefingProvider.textContent = `${provider} (${shortModel})`;
+  }
+  if (els.llmFlowProvider) {
+    els.llmFlowProvider.textContent = providerKey === "nvidia_nim" ? "NVIDIA NIM" : provider;
+  }
 }
 
 function providerLabel(provider) {
@@ -494,6 +540,27 @@ function providerLabel(provider) {
     lmstudio: "LM Studio",
     nvidia_nim: "NVIDIA NIM"
   }[provider] || provider;
+}
+
+function providerDetail(provider, model, available, detail) {
+  const shortModel = shortModelName(model);
+  if (provider === "nvidia_nim") {
+    return available
+      ? `${shortModel} | NVIDIA NIM API | LM Studio not required`
+      : `${shortModel} | NVIDIA NIM blocked${detail ? ` | ${detail}` : ""}`;
+  }
+  return available
+    ? `${shortModel} | Local LM Studio runtime`
+    : `${shortModel} | LM Studio not ready${detail ? ` | ${detail}` : ""}`;
+}
+
+function shortModelName(model) {
+  if (!model) return "No model configured";
+  return String(model).split("/").pop();
+}
+
+function activeProviderName() {
+  return providerLabel(state.health?.llm_provider || "lmstudio");
 }
 
 function renderScenarios() {
@@ -720,7 +787,7 @@ function getNarrationContent(stepId) {
       impact: `Instantly linking biometric profiles at dispatch validates health eligibility. This resolves critical patient administration bottlenecks and allows clinicians to focus purely on active care upon arrival.`
     },
     "ai_triage": {
-      text: `NAS paramedics have logged initial patient telemetry. The localized LLM clinical assistant parses the raw telemetry, generating a structured clinical signal: ${acuity.toUpperCase()} priority classification, assigned to the ${pathway.toUpperCase()} pathway, requiring capabilities like: ${(state.incident?.triage_signal?.required_capabilities || []).join(', ').toUpperCase() || 'ICU & Oxygen points'}.`,
+      text: `NAS paramedics have logged initial patient telemetry. The ${activeProviderName()} clinical assistant parses the raw telemetry, generating a structured clinical signal: ${acuity.toUpperCase()} priority classification, assigned to the ${pathway.toUpperCase()} pathway, requiring capabilities like: ${(state.incident?.triage_signal?.required_capabilities || []).join(', ').toUpperCase() || 'ICU & Oxygen points'}.`,
       impact: `AI triage extracts core clinical signals from verbal paramedic telemetry instantly. This acts as a redundant clinical guardrail, ensuring dispatch errors are caught before route lock.`
     },
     "routing": {
@@ -1090,7 +1157,7 @@ function renderPatient() {
       </div>
     ` : `
       <div style="text-align: center; padding: 12px; border:1px dashed var(--line); border-radius:10px; color:var(--muted); font-size:12px;">
-        AI clinical reasoning pending (Triage step trigger matches local LLM prompt evaluation)
+        AI clinical reasoning pending (${escapeHtml(activeProviderName())} triage prompt will run on the selected provider)
       </div>
     `}
   `;

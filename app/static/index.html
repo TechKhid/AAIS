@@ -16,7 +16,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <!-- Custom CSS Styles -->
-    <link rel="stylesheet" href="/static/styles.css?v=20260522-rebuild" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260522-nim-provider" />
   </head>
   <body>
     <!-- 1. Architecture Briefing Overlay (Pitch Deck slide) -->
@@ -37,7 +37,7 @@
             
             <div class="tech-stack-summary">
               <div class="tech-item"><strong>Core:</strong> FastAPI, Python 3.11</div>
-              <div class="tech-item"><strong>AI Triage:</strong> Configurable LLM provider (LM Studio or NVIDIA NIM)</div>
+              <div class="tech-item"><strong>AI Triage:</strong> <span id="llm-briefing-provider">Configurable LLM provider (LM Studio or NVIDIA NIM)</span></div>
               <div class="tech-item"><strong>Routing:</strong> Dynamic Multi-Factor Scoring</div>
             </div>
             
@@ -70,7 +70,7 @@
                 <div class="step-desc">
                   <strong>AI Triage</strong>
                   <span>Extracts acuity, pathways, capability requirements</span>
-                  <small class="pill mock">LLM Provider</small>
+                  <small class="pill mock" id="llm-flow-provider">LLM Provider</small>
                   <small class="pill prod">FHIR Triage Pipeline</small>
                 </div>
               </div>
@@ -132,7 +132,13 @@
       </div>
 
       <div class="header-actions">
-        <div class="model-status" id="llm-status">LLM Provider Checking...</div>
+        <div class="llm-provider-card" id="llm-provider-card" aria-live="polite">
+          <div class="llm-provider-row">
+            <span class="llm-provider-label" id="llm-provider-label">LLM Provider</span>
+            <span class="model-status" id="llm-status">Checking</span>
+          </div>
+          <div class="llm-provider-detail" id="llm-provider-detail">Resolving active model...</div>
+        </div>
         <button class="icon-btn" id="theme-toggle" type="button" title="Toggle Dark/Light Mode">🌓</button>
         <button class="ghost-btn" id="reset-sim" type="button">Reset simulation</button>
       </div>
@@ -520,6 +526,6 @@
     <div class="toast-stack" id="toast-stack"></div>
 
     <!-- Main JavaScript Simulator Application -->
-    <script src="/static/app.js?v=20260522-rebuild"></script>
+    <script src="/static/app.js?v=20260522-nim-provider"></script>
   </body>
 </html>
