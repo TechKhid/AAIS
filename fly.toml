@@ -1,6 +1,6 @@
 # Change this if the Fly app name is already taken.
 app = "aais-backend"
-primary_region = "iad"
+primary_region = "fra"
 
 [build]
   dockerfile = "Dockerfile"
@@ -11,7 +11,7 @@ primary_region = "iad"
   NVIDIA_NIM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
   LLM_TIMEOUT_SECONDS = "30"
   # Replace this with the Vercel production URL after the frontend project exists.
-  AAIS_CORS_ORIGINS = "https://your-vercel-project.vercel.app"
+  AAIS_CORS_ORIGINS = "https://aais-gray.vercel.app/"
 
 [http_service]
   internal_port = 8080
