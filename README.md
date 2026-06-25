@@ -648,3 +648,5 @@ The LLM should remain behind a provider interface. Prompts, model ids, outputs, 
 ## Related Documentation
 
 See `docs/architecture.md` for the shorter MVP and production architecture note.
+
+See `docs/deployment.md` for the Fly.io backend and Vercel frontend deployment runbook.

@@ -1,8 +1,11 @@
+.git
 .env
-.venv/
+.venv
 __pycache__/
 .pytest_cache/
 logs/
 dist/
-.local/
+node_modules/
 *.pyc
+*.pyo
+*.pyd

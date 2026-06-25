@@ -1404,7 +1404,7 @@ function setBusy(isBusy, mode = null) {
 
 // REST call client wrapper
 async function api(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     method: options.method || "GET",
     headers: { "Content-Type": "application/json" },
     body: options.body ? JSON.stringify(options.body) : undefined
@@ -1414,6 +1414,18 @@ async function api(path, options = {}) {
     throw new Error(body.detail || `Request failed with ${response.status}`);
   }
   return body;
+}
+
+function apiUrl(path) {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  const configuredBase = window.AAIS_CONFIG?.apiBaseUrl || window.AAIS_API_BASE_URL || "";
+  const apiBase = String(configuredBase).replace(/\/+$/, "");
+  if (!apiBase) {
+    return path;
+  }
+  return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 // Typewriter clinical engine

@@ -20,6 +20,7 @@ class Settings:
     nvidia_nim_model: str = "meta/llama-3.1-8b-instruct"
     nvidia_nim_api_key: str | None = None
     llm_timeout_seconds: float = 30.0
+    cors_origins: tuple[str, ...] = ()
 
 
 def get_settings() -> Settings:
@@ -37,6 +38,7 @@ def get_settings() -> Settings:
             or None
         ),
         llm_timeout_seconds=float(os.getenv("LLM_TIMEOUT_SECONDS", "30")),
+        cors_origins=_parse_csv(os.getenv("AAIS_CORS_ORIGINS") or os.getenv("CORS_ORIGINS") or ""),
     )
 
 
@@ -54,3 +56,7 @@ def _normalize_llm_provider(value: str) -> LLMProvider:
     if provider is None:
         raise ValueError(f"Unsupported LLM_PROVIDER {value!r}. Use 'lmstudio' or 'nvidia_nim'.")
     return provider
+
+
+def _parse_csv(value: str) -> tuple[str, ...]:
+    return tuple(item.strip().rstrip("/") for item in value.split(",") if item.strip())

@@ -9,6 +9,11 @@ from app.services.llm_client import LMStudioClient
 router = APIRouter(tags=["health"])
 
 
+@router.get("/live", include_in_schema=False)
+async def live() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health(request: Request, llm_client: LMStudioClient = Depends(get_llm_client)) -> HealthResponse:
     llm_health = await llm_client.health()

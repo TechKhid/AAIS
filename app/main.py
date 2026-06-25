@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -37,6 +38,14 @@ def create_app() -> FastAPI:
     api.state.routing_service = routing_service
     api.state.llm_client = llm_client
     api.state.simulation_engine = simulation_engine
+
+    if settings.cors_origins:
+        api.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.cors_origins),
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     api.include_router(health.router)
     api.include_router(incidents.router)

@@ -18,6 +18,13 @@ def test_health_reports_llm_status(client):
     assert body["lmstudio_model"]
 
 
+def test_live_does_not_depend_on_llm(client):
+    response = client.get("/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_health_reports_nim_without_claiming_lmstudio_available():
     class FakeNimLLM:
         async def health(self) -> dict:
